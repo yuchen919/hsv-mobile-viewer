@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>手机 HSV 轮廓检测</title>
+    <meta
+      name="description"
+      content="在手机浏览器中调用摄像头，实时做 HSV 提取、边界检测和颜色轮廓可视化。"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Mobile HSV Lab</p>
+          <h1>手机摄像头实时颜色轮廓检测</h1>
+          <p class="hero-text">
+            直接在浏览器里取流、调 HSV、看轮廓。适合手机现场调参，也方便后面接到你的小车识别逻辑里。
+          </p>
+        </div>
+        <div class="status-card">
+          <p class="status-label">运行状态</p>
+          <p id="statusText" class="status-text">等待启动摄像头</p>
+          <p id="secureHint" class="status-hint"></p>
+        </div>
+      </header>
+
+      <main class="app-grid">
+        <section class="preview-panel panel">
+          <div class="panel-head">
+            <div>
+              <h2>实时画面</h2>
+              <p>点击画面可自动吸取目标颜色</p>
+            </div>
+            <div class="action-group">
+              <button id="startButton" class="action-button primary">启动后置摄像头</button>
+              <button id="switchButton" class="action-button ghost">切换前后摄像头</button>
+            </div>
+          </div>
+
+          <div class="preview-stage">
+            <video id="cameraVideo" playsinline muted></video>
+            <canvas id="outputCanvas"></canvas>
+          </div>
+
+          <div class="stats-strip">
+            <div class="stat-pill">
+              <span class="stat-label">识别色块</span>
+              <strong id="componentCount">0</strong>
+            </div>
+            <div class="stat-pill">
+              <span class="stat-label">覆盖率</span>
+              <strong id="coverageValue">0.00%</strong>
+            </div>
+            <div class="stat-pill">
+              <span class="stat-label">最大面积</span>
+              <strong id="largestArea">0</strong>
+            </div>
+            <div class="stat-pill">
+              <span class="stat-label">取样 HSV</span>
+              <strong id="sampleValue">未取样</strong>
+            </div>
+          </div>
+
+          <div class="mini-preview-grid">
+            <div class="mini-preview-card">
+              <div class="mini-head">
+                <h3>掩膜预览</h3>
+                <p>二值化结果</p>
+              </div>
+              <canvas id="maskCanvas"></canvas>
+            </div>
+            <div class="mini-preview-card">
+              <div class="mini-head">
+                <h3>边界预览</h3>
+                <p>轮廓边缘</p>
+              </div>
+              <canvas id="edgeCanvas"></canvas>
+            </div>
+          </div>
+        </section>
+
+        <section class="control-panel panel">
+          <div class="panel-head">
+            <div>
+              <h2>中文调参面板</h2>
+              <p>红、绿、蓝预设可以先快速定位，再细调</p>
+            </div>
+            <div class="preset-row">
+              <button data-preset="red" class="preset-button red">红色</button>
+              <button data-preset="green" class="preset-button green">绿色</button>
+              <button data-preset="blue" class="preset-button blue">蓝色</button>
+            </div>
+          </div>
+
+          <div id="controlList" class="control-list"></div>
+
+          <div class="utility-row">
+            <button id="saveButton" class="action-button ghost">保存当前参数</button>
+            <button id="resetButton" class="action-button ghost">恢复默认参数</button>
+          </div>
+        </section>
+
+        <section class="guide-panel panel">
+          <div class="panel-head">
+            <div>
+              <h2>怎么理解这些参数</h2>
+              <p>网页里中文可以正常显示，所以这里把核心概念讲清楚</p>
+            </div>
+          </div>
+
+          <div class="guide-list">
+            <article class="guide-card">
+              <h3>HSV 和三原色的关系</h3>
+              <p>
+                RGB 是红、绿、蓝三原色混合；HSV 更适合做颜色分割。
+                其中 H 看“是什么颜色”，S 看“颜色有多纯”，V 看“亮不亮”。
+              </p>
+              <div class="rgb-bar">
+                <span class="rgb-chip red">R 红</span>
+                <span class="rgb-chip green">G 绿</span>
+                <span class="rgb-chip blue">B 蓝</span>
+              </div>
+            </article>
+
+            <article class="guide-card">
+              <h3>色相 H 的粗略参考</h3>
+              <p>0 红，30 黄，60 绿，90 青，120 蓝，150 紫。红色经常会跨过 0，所以会出现下限比上限大的情况，这是正常的。</p>
+            </article>
+
+            <article class="guide-card">
+              <h3>去噪与补洞</h3>
+              <p>
+                “去噪强度”会清掉散碎小点，“补洞强度”会把目标内部的小黑洞补起来。
+                如果轮廓破碎，就适当加补洞；如果满屏小杂点，就适当加去噪。
+              </p>
+            </article>
+
+            <article class="guide-card">
+              <h3>手机使用提醒</h3>
+              <p>
+                手机浏览器要调用摄像头，通常需要 <strong>HTTPS</strong> 或 `localhost`。
+                所以后续最好把这个网页部署到 GitHub Pages、Cloudflare Pages 或你自己的 HTTPS 服务上。
+              </p>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

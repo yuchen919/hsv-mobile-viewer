@@ -12,6 +12,7 @@
   --shadow: 0 24px 80px rgba(0, 0, 0, 0.26);
   --radius-xl: 28px;
   --radius-lg: 20px;
+  --radius-md: 14px;
   --font-ui: "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
@@ -162,14 +163,35 @@ input {
 
 .action-group,
 .preset-row,
-.utility-row {
+.utility-row,
+.mode-row {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
 }
 
+.preset-tools {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.preset-block {
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.preset-label {
+  margin: 0 0 12px;
+  color: var(--text-soft);
+  font-size: 0.9rem;
+}
+
 .action-button,
-.preset-button {
+.preset-button,
+.mode-button {
   border: 0;
   border-radius: 999px;
   padding: 11px 16px;
@@ -177,11 +199,13 @@ input {
   transition:
     transform 160ms ease,
     background 160ms ease,
-    opacity 160ms ease;
+    opacity 160ms ease,
+    box-shadow 160ms ease;
 }
 
 .action-button:hover,
-.preset-button:hover {
+.preset-button:hover,
+.mode-button:hover {
   transform: translateY(-1px);
 }
 
@@ -191,28 +215,33 @@ input {
   font-weight: 700;
 }
 
-.action-button.ghost {
+.action-button.ghost,
+.mode-button {
   background: rgba(255, 255, 255, 0.08);
   color: var(--text-main);
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
+.mode-button {
+  padding-inline: 14px;
+}
+
+.mode-button.active {
+  background: linear-gradient(135deg, rgba(134, 240, 200, 0.28), rgba(53, 214, 163, 0.4));
+  color: #f5fffb;
+  box-shadow: inset 0 0 0 1px rgba(134, 240, 200, 0.45);
+}
+
 .preset-button {
-  min-width: 78px;
+  min-width: 70px;
   font-weight: 700;
   color: #fff;
 }
 
-.preset-button.red {
-  background: linear-gradient(135deg, #ff7a79, #ff475b);
-}
-
-.preset-button.green {
-  background: linear-gradient(135deg, #4ee98e, #1bb86b);
-}
-
-.preset-button.blue {
-  background: linear-gradient(135deg, #68b6ff, #3279ff);
+.preset-button.active {
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.82),
+    0 10px 30px rgba(0, 0, 0, 0.18);
 }
 
 .preview-stage {
@@ -316,6 +345,11 @@ input {
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: opacity 160ms ease;
+}
+
+.control-item.is-disabled {
+  opacity: 0.55;
 }
 
 .control-top {
@@ -348,6 +382,11 @@ input {
 .control-slider {
   width: 100%;
   accent-color: var(--accent);
+}
+
+.control-slider:disabled {
+  cursor: not-allowed;
+  accent-color: rgba(255, 255, 255, 0.3);
 }
 
 .guide-list {
@@ -422,7 +461,14 @@ input {
     grid-template-columns: 1fr;
   }
 
-  .control-item {
+  .control-item,
+  .preset-block {
     padding: 12px;
+  }
+
+  .preset-button,
+  .mode-button {
+    min-width: calc(50% - 5px);
+    justify-content: center;
   }
 }

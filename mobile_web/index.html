@@ -17,7 +17,7 @@
           <p class="eyebrow">Mobile HSV Lab</p>
           <h1>手机摄像头实时颜色轮廓检测</h1>
           <p class="hero-text">
-            直接在浏览器里取流、调 HSV、看轮廓。适合手机现场调参，也方便后面接到你的小车识别逻辑里。
+            直接在浏览器里取流、调 HSV、看轮廓。现在支持彩色与黑白灰识别、区域平均取样、更细的取样容差和更稳的目标筛选。
           </p>
         </div>
         <div class="status-card">
@@ -32,7 +32,7 @@
           <div class="panel-head">
             <div>
               <h2>实时画面</h2>
-              <p>点击画面可自动吸取目标颜色</p>
+              <p>点击画面会在一小块区域内平均取样，自动帮你估计更稳的颜色范围</p>
             </div>
             <div class="action-group">
               <button id="startButton" class="action-button primary">启动后置摄像头</button>
@@ -86,12 +86,18 @@
           <div class="panel-head">
             <div>
               <h2>中文调参面板</h2>
-              <p>红、绿、蓝预设可以先快速定位，再细调</p>
+              <p>先选识别模式，再选颜色预设，最后细调滑条，准确率会明显更稳定</p>
             </div>
-            <div class="preset-row">
-              <button data-preset="red" class="preset-button red">红色</button>
-              <button data-preset="green" class="preset-button green">绿色</button>
-              <button data-preset="blue" class="preset-button blue">蓝色</button>
+          </div>
+
+          <div class="preset-tools">
+            <div class="preset-block">
+              <p class="preset-label">识别模式</p>
+              <div id="modeRow" class="mode-row"></div>
+            </div>
+            <div class="preset-block">
+              <p class="preset-label">快速预设</p>
+              <div id="presetRow" class="preset-row"></div>
             </div>
           </div>
 
@@ -107,7 +113,7 @@
           <div class="panel-head">
             <div>
               <h2>怎么理解这些参数</h2>
-              <p>网页里中文可以正常显示，所以这里把核心概念讲清楚</p>
+              <p>这版增加了模式和取样容差，适合更精细地分离黑白和彩色目标</p>
             </div>
           </div>
 
@@ -126,23 +132,26 @@
             </article>
 
             <article class="guide-card">
-              <h3>色相 H 的粗略参考</h3>
-              <p>0 红，30 黄，60 绿，90 青，120 蓝，150 紫。红色经常会跨过 0，所以会出现下限比上限大的情况，这是正常的。</p>
-            </article>
-
-            <article class="guide-card">
-              <h3>去噪与补洞</h3>
+              <h3>黑白灰为什么要单独做模式</h3>
               <p>
-                “去噪强度”会清掉散碎小点，“补洞强度”会把目标内部的小黑洞补起来。
-                如果轮廓破碎，就适当加补洞；如果满屏小杂点，就适当加去噪。
+                黑、白、灰的共同特点是饱和度比较低，颜色并不明显。它们更依赖 S 和 V，
+                所以这版会在黑白灰模式下自动弱化色相 H 的影响，识别会比单纯卡 H 更稳定。
               </p>
             </article>
 
             <article class="guide-card">
-              <h3>手机使用提醒</h3>
+              <h3>点按取样为什么更稳了</h3>
               <p>
-                手机浏览器要调用摄像头，通常需要 <strong>HTTPS</strong> 或 `localhost`。
-                所以后续最好把这个网页部署到 GitHub Pages、Cloudflare Pages 或你自己的 HTTPS 服务上。
+                现在不是只取一个像素，而是在点击点周围取一小块区域做平均，再结合你设置的容差自动生成范围。
+                这样能减少手抖、噪点和反光带来的误差。
+              </p>
+            </article>
+
+            <article class="guide-card">
+              <h3>减少误检的小技巧</h3>
+              <p>
+                如果框太多，先提高“最小面积”，再把“显示前几个目标”调小；
+                如果边缘破碎，适当增加“补洞强度”；如果杂点很多，就提高“预模糊”和“去噪强度”。
               </p>
             </article>
           </div>

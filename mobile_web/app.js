@@ -10,6 +10,8 @@ const switchButton = document.getElementById("switchButton");
 const saveButton = document.getElementById("saveButton");
 const resetButton = document.getElementById("resetButton");
 const controlList = document.getElementById("controlList");
+const modeRow = document.getElementById("modeRow");
+const presetRow = document.getElementById("presetRow");
 const statusText = document.getElementById("statusText");
 const secureHint = document.getElementById("secureHint");
 
@@ -22,6 +24,104 @@ const hiddenSourceCanvas = document.createElement("canvas");
 const hiddenSourceCtx = hiddenSourceCanvas.getContext("2d", { willReadFrequently: true });
 const hiddenOverlayCanvas = document.createElement("canvas");
 const hiddenOverlayCtx = hiddenOverlayCanvas.getContext("2d");
+
+const modeDefinitions = [
+  {
+    id: "color",
+    label: "彩色",
+    status: "彩色模式会同时参考 H、S、V，适合红绿蓝黄等明显颜色。",
+  },
+  {
+    id: "black",
+    label: "黑色",
+    status: "黑色模式会弱化 H，主要参考饱和度和明度。",
+  },
+  {
+    id: "white",
+    label: "白色",
+    status: "白色模式会弱化 H，主要保留低饱和且高亮区域。",
+  },
+  {
+    id: "gray",
+    label: "灰色",
+    status: "灰色模式适合低饱和的中间亮度区域。",
+  },
+];
+
+const presetDefinitions = [
+  {
+    id: "red",
+    label: "红色",
+    mode: "color",
+    textColor: "#ffffff",
+    gradient: "linear-gradient(135deg, #ff7d7d, #ff4d60)",
+    values: { lowH: 170, highH: 12, lowS: 75, highS: 255, lowV: 70, highV: 255 },
+  },
+  {
+    id: "orange",
+    label: "橙色",
+    mode: "color",
+    textColor: "#ffffff",
+    gradient: "linear-gradient(135deg, #ffb067, #ff7c3b)",
+    values: { lowH: 8, highH: 24, lowS: 80, highS: 255, lowV: 80, highV: 255 },
+  },
+  {
+    id: "yellow",
+    label: "黄色",
+    mode: "color",
+    textColor: "#433200",
+    gradient: "linear-gradient(135deg, #ffe57a, #ffcf47)",
+    values: { lowH: 18, highH: 42, lowS: 70, highS: 255, lowV: 90, highV: 255 },
+  },
+  {
+    id: "green",
+    label: "绿色",
+    mode: "color",
+    textColor: "#ffffff",
+    gradient: "linear-gradient(135deg, #52ec91, #1bb86b)",
+    values: { lowH: 35, highH: 90, lowS: 55, highS: 255, lowV: 55, highV: 255 },
+  },
+  {
+    id: "blue",
+    label: "蓝色",
+    mode: "color",
+    textColor: "#ffffff",
+    gradient: "linear-gradient(135deg, #74c1ff, #3279ff)",
+    values: { lowH: 90, highH: 140, lowS: 55, highS: 255, lowV: 55, highV: 255 },
+  },
+  {
+    id: "purple",
+    label: "紫色",
+    mode: "color",
+    textColor: "#ffffff",
+    gradient: "linear-gradient(135deg, #b07cff, #7d58ff)",
+    values: { lowH: 130, highH: 165, lowS: 50, highS: 255, lowV: 55, highV: 255 },
+  },
+  {
+    id: "black",
+    label: "黑色",
+    mode: "black",
+    textColor: "#ffffff",
+    gradient: "linear-gradient(135deg, #232c36, #090f14)",
+    values: { lowH: 0, highH: 179, lowS: 0, highS: 135, lowV: 0, highV: 85 },
+  },
+  {
+    id: "white",
+    label: "白色",
+    mode: "white",
+    textColor: "#102532",
+    gradient: "linear-gradient(135deg, #ffffff, #dbe8f3)",
+    values: { lowH: 0, highH: 179, lowS: 0, highS: 68, lowV: 180, highV: 255 },
+  },
+  {
+    id: "gray",
+    label: "灰色",
+    mode: "gray",
+    textColor: "#ffffff",
+    gradient: "linear-gradient(135deg, #8c97a5, #59626e)",
+    values: { lowH: 0, highH: 179, lowS: 0, highS: 65, lowV: 45, highV: 200 },
+  },
+];
 
 const defaultConfig = {
   lowH: 20,
@@ -36,33 +136,13 @@ const defaultConfig = {
   processWidth: 256,
   maskOpacity: 38,
   boxThickness: 3,
-};
-
-const presetMap = {
-  red: {
-    lowH: 170,
-    highH: 10,
-    lowS: 80,
-    highS: 255,
-    lowV: 80,
-    highV: 255,
-  },
-  green: {
-    lowH: 35,
-    highH: 90,
-    lowS: 60,
-    highS: 255,
-    lowV: 60,
-    highV: 255,
-  },
-  blue: {
-    lowH: 90,
-    highH: 140,
-    lowS: 60,
-    highS: 255,
-    lowV: 60,
-    highV: 255,
-  },
+  blurStrength: 1,
+  maxComponents: 3,
+  sampleRadius: 2,
+  sampleHueMargin: 12,
+  sampleSMargin: 48,
+  sampleVMargin: 48,
+  detectionMode: "color",
 };
 
 const controls = [
@@ -72,7 +152,7 @@ const controls = [
     min: 0,
     max: 179,
     step: 1,
-    hint: "H 表示颜色类别。大致可理解成 0 红、30 黄、60 绿、90 青、120 蓝、150 紫。",
+    hint: "彩色模式下表示颜色范围起点。红色跨过 0 度时，下限可以比上限大。",
   },
   {
     key: "highH",
@@ -80,7 +160,7 @@ const controls = [
     min: 0,
     max: 179,
     step: 1,
-    hint: "如果做红色检测，下限比上限大是正常的，表示色相跨过 0 度。",
+    hint: "彩色模式下表示颜色范围终点。黑白灰模式下会自动忽略这一项。",
   },
   {
     key: "lowS",
@@ -88,7 +168,7 @@ const controls = [
     min: 0,
     max: 255,
     step: 1,
-    hint: "S 越大颜色越纯，越小越接近灰白。",
+    hint: "S 越大颜色越纯。做彩色分割时，下限常用于排除偏灰区域。",
   },
   {
     key: "highS",
@@ -96,7 +176,7 @@ const controls = [
     min: 0,
     max: 255,
     step: 1,
-    hint: "通常保持较高即可，主要用下限去卡掉偏灰区域。",
+    hint: "黑白灰模式更依赖这一项。做白色和灰色时，通常要把它压低一些。",
   },
   {
     key: "lowV",
@@ -104,7 +184,7 @@ const controls = [
     min: 0,
     max: 255,
     step: 1,
-    hint: "V 越小越暗。环境光不稳定时，先调这个最有效。",
+    hint: "V 越小越暗。做黑色时可以把上限压低，做白色时可以把下限拉高。",
   },
   {
     key: "highV",
@@ -112,7 +192,15 @@ const controls = [
     min: 0,
     max: 255,
     step: 1,
-    hint: "通常会放高一点，避免亮部目标被截断。",
+    hint: "和明度下限一起决定亮度范围，环境光变化大时这一组最关键。",
+  },
+  {
+    key: "blurStrength",
+    label: "预模糊",
+    min: 0,
+    max: 3,
+    step: 1,
+    hint: "先做一点轻量模糊，能减少噪点和锯齿抖动。一般 1 到 2 就够了。",
   },
   {
     key: "openIterations",
@@ -120,7 +208,7 @@ const controls = [
     min: 0,
     max: 3,
     step: 1,
-    hint: "开运算次数，适合清掉零散小点。",
+    hint: "开运算次数，适合清理零散小噪点。",
   },
   {
     key: "closeIterations",
@@ -128,23 +216,63 @@ const controls = [
     min: 0,
     max: 3,
     step: 1,
-    hint: "闭运算次数，适合补齐轮廓里的小黑洞。",
+    hint: "闭运算次数，适合把轮廓内部的小黑洞补起来。",
   },
   {
     key: "minArea",
     label: "最小面积",
     min: 0,
-    max: 4000,
+    max: 5000,
     step: 10,
-    hint: "过滤太小的误检色块。数值越大，越只保留大目标。",
+    hint: "过滤太小的误检色块。框太多时先调高这一项。",
+  },
+  {
+    key: "maxComponents",
+    label: "显示前几个目标",
+    min: 1,
+    max: 8,
+    step: 1,
+    hint: "按面积从大到小保留前几个目标，能明显减少画面里乱框的问题。",
   },
   {
     key: "processWidth",
     label: "处理宽度",
     min: 160,
-    max: 480,
+    max: 512,
     step: 16,
     hint: "越大越精细，但手机压力也越大。卡顿时把它调低。",
+  },
+  {
+    key: "sampleRadius",
+    label: "取样半径",
+    min: 0,
+    max: 8,
+    step: 1,
+    hint: "点击取样时，会在点击点周围一起取样。越大越稳，但也更容易把邻近颜色一起吸进去。",
+  },
+  {
+    key: "sampleHueMargin",
+    label: "取样色相容差",
+    min: 2,
+    max: 40,
+    step: 1,
+    hint: "点击取样后，H 范围会按这个容差展开。想更精细就把它调小。",
+  },
+  {
+    key: "sampleSMargin",
+    label: "取样饱和容差",
+    min: 4,
+    max: 120,
+    step: 1,
+    hint: "点击取样后，S 范围会按这个容差展开。反光多时适当调大。",
+  },
+  {
+    key: "sampleVMargin",
+    label: "取样明度容差",
+    min: 4,
+    max: 120,
+    step: 1,
+    hint: "点击取样后，V 范围会按这个容差展开。亮暗变化大时适当调大。",
   },
   {
     key: "maskOpacity",
@@ -167,6 +295,7 @@ const controls = [
 const state = {
   config: loadConfig(),
   currentFacingMode: "environment",
+  currentPresetId: null,
   stream: null,
   frameHandle: 0,
   running: false,
@@ -186,8 +315,11 @@ const state = {
   lastSample: null,
 };
 
+renderModeButtons();
+renderPresetButtons();
 renderControls();
 bindEvents();
+syncControls();
 updateStatus("等待启动摄像头");
 initSecureHint();
 
@@ -197,7 +329,12 @@ function loadConfig() {
     if (!saved) {
       return { ...defaultConfig };
     }
-    return { ...defaultConfig, ...JSON.parse(saved) };
+
+    const merged = { ...defaultConfig, ...JSON.parse(saved) };
+    if (!modeDefinitions.some((mode) => mode.id === merged.detectionMode)) {
+      merged.detectionMode = defaultConfig.detectionMode;
+    }
+    return merged;
   } catch (_error) {
     return { ...defaultConfig };
   }
@@ -207,12 +344,74 @@ function saveConfigToStorage() {
   localStorage.setItem("mobile-hsv-config", JSON.stringify(state.config));
 }
 
+function renderModeButtons() {
+  const fragment = document.createDocumentFragment();
+
+  modeDefinitions.forEach((mode) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "mode-button";
+    button.textContent = mode.label;
+    button.dataset.mode = mode.id;
+    button.addEventListener("click", () => {
+      state.currentPresetId = null;
+      state.config.detectionMode = mode.id;
+      syncControls();
+      saveConfigToStorage();
+      updateStatus(mode.status);
+    });
+    fragment.append(button);
+  });
+
+  modeRow.innerHTML = "";
+  modeRow.append(fragment);
+}
+
+function renderPresetButtons() {
+  const fragment = document.createDocumentFragment();
+
+  presetDefinitions.forEach((preset) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "preset-button";
+    button.textContent = preset.label;
+    button.dataset.preset = preset.id;
+    button.style.background = preset.gradient;
+    button.style.color = preset.textColor;
+    button.addEventListener("click", () => {
+      applyPreset(preset.id);
+    });
+    fragment.append(button);
+  });
+
+  presetRow.innerHTML = "";
+  presetRow.append(fragment);
+}
+
+function applyPreset(presetId) {
+  const preset = presetDefinitions.find((item) => item.id === presetId);
+  if (!preset) {
+    return;
+  }
+
+  state.currentPresetId = presetId;
+  state.config = {
+    ...state.config,
+    ...preset.values,
+    detectionMode: preset.mode,
+  };
+  syncControls();
+  saveConfigToStorage();
+  updateStatus(`已切到${preset.label}预设，可继续用滑条精细调整`);
+}
+
 function renderControls() {
   const fragment = document.createDocumentFragment();
 
   controls.forEach((control) => {
     const wrapper = document.createElement("div");
     wrapper.className = "control-item";
+    wrapper.dataset.controlKey = control.key;
 
     const top = document.createElement("div");
     top.className = "control-top";
@@ -240,12 +439,14 @@ function renderControls() {
     input.step = String(control.step);
     input.value = String(state.config[control.key]);
     input.addEventListener("input", () => {
+      state.currentPresetId = null;
       state.config[control.key] = Number(input.value);
       value.textContent = input.value;
-      saveConfigToStorage();
       if (control.key === "processWidth" && state.running) {
         configureProcessingSize();
       }
+      saveConfigToStorage();
+      syncControls();
     });
 
     top.append(label, value);
@@ -282,6 +483,7 @@ function bindEvents() {
   });
 
   resetButton.addEventListener("click", () => {
+    state.currentPresetId = null;
     state.config = { ...defaultConfig };
     syncControls();
     saveConfigToStorage();
@@ -289,16 +491,6 @@ function bindEvents() {
       configureProcessingSize();
     }
     updateStatus("参数已恢复默认值");
-  });
-
-  document.querySelectorAll("[data-preset]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const preset = presetMap[button.dataset.preset];
-      state.config = { ...state.config, ...preset };
-      syncControls();
-      saveConfigToStorage();
-      updateStatus(`已切到${button.textContent}预设`);
-    });
   });
 
   outputCanvas.addEventListener("pointerdown", handleCanvasSample);
@@ -310,15 +502,33 @@ function bindEvents() {
 }
 
 function syncControls() {
+  const hueDisabled = state.config.detectionMode !== "color";
+
   controls.forEach((control) => {
     const input = document.getElementById(control.key);
     const output = document.getElementById(`${control.key}Value`);
-    if (input) {
-      input.value = String(state.config[control.key]);
+    if (!input || !output) {
+      return;
     }
-    if (output) {
-      output.textContent = String(state.config[control.key]);
-    }
+
+    input.value = String(state.config[control.key]);
+    output.textContent = String(state.config[control.key]);
+
+    const shouldDisable =
+      hueDisabled &&
+      (control.key === "lowH" ||
+        control.key === "highH" ||
+        control.key === "sampleHueMargin");
+    input.disabled = shouldDisable;
+    input.closest(".control-item")?.classList.toggle("is-disabled", shouldDisable);
+  });
+
+  document.querySelectorAll("[data-mode]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.mode === state.config.detectionMode);
+  });
+
+  document.querySelectorAll("[data-preset]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.preset === state.currentPresetId);
   });
 }
 
@@ -442,7 +652,11 @@ function renderLoop() {
   }
 
   if (video.readyState >= 2) {
+    hiddenSourceCtx.filter =
+      state.config.blurStrength > 0 ? `blur(${state.config.blurStrength}px)` : "none";
     hiddenSourceCtx.drawImage(video, 0, 0, hiddenSourceCanvas.width, hiddenSourceCanvas.height);
+    hiddenSourceCtx.filter = "none";
+
     const frame = hiddenSourceCtx.getImageData(
       0,
       0,
@@ -457,7 +671,7 @@ function renderLoop() {
       hiddenSourceCanvas.height,
       state.config
     );
-    paintPreviews(hiddenSourceCanvas.width, hiddenSourceCanvas.height);
+    paintPreviews();
     paintOutput(analysis, hiddenSourceCanvas.width, hiddenSourceCanvas.height);
     updateStats(analysis);
   }
@@ -471,18 +685,11 @@ function analyzeFrame(pixels, width, height, config) {
 
   for (let index = 0, pixelIndex = 0; index < mask.length; index += 1, pixelIndex += 4) {
     const [h, s, v] = rgbToHsv(pixels[pixelIndex], pixels[pixelIndex + 1], pixels[pixelIndex + 2]);
-
-    const hueMatch =
-      config.lowH <= config.highH
-        ? h >= config.lowH && h <= config.highH
-        : h >= config.lowH || h <= config.highH;
-    const satMatch = s >= config.lowS && s <= config.highS;
-    const valMatch = v >= config.lowV && v <= config.highV;
-    mask[index] = hueMatch && satMatch && valMatch ? 1 : 0;
+    mask[index] = pixelMatches(h, s, v, config) ? 1 : 0;
   }
 
   const morphed = applyMorphology(mask, width, height, config.openIterations, config.closeIterations);
-  const components = filterComponents(morphed, width, height, config.minArea);
+  const components = filterComponents(morphed, width, height, config.minArea, config.maxComponents);
   buildEdgeMask(state.filteredMask, width, height, state.edgeMask);
 
   let matchedPixels = 0;
@@ -496,6 +703,22 @@ function analyzeFrame(pixels, width, height, config) {
     matchedPixels,
     largestArea: largest ? largest.area : 0,
   };
+}
+
+function pixelMatches(h, s, v, config) {
+  const satMatch = s >= config.lowS && s <= config.highS;
+  const valMatch = v >= config.lowV && v <= config.highV;
+
+  if (config.detectionMode !== "color") {
+    return satMatch && valMatch;
+  }
+
+  const hueMatch =
+    config.lowH <= config.highH
+      ? h >= config.lowH && h <= config.highH
+      : h >= config.lowH || h <= config.highH;
+
+  return hueMatch && satMatch && valMatch;
 }
 
 function rgbToHsv(r, g, b) {
@@ -587,9 +810,8 @@ function dilateBinary(src, dst, width, height) {
   }
 }
 
-function filterComponents(mask, width, height, minArea) {
+function filterComponents(mask, width, height, minArea, maxComponents) {
   state.visited.fill(0);
-  state.filteredMask.fill(0);
 
   const components = [];
 
@@ -630,15 +852,18 @@ function filterComponents(mask, width, height, minArea) {
           if (dx === 0 && dy === 0) {
             continue;
           }
+
           const nx = x + dx;
           const ny = y + dy;
           if (nx < 0 || nx >= width || ny < 0 || ny >= height) {
             continue;
           }
+
           const neighborIndex = ny * width + nx;
           if (mask[neighborIndex] === 0 || state.visited[neighborIndex] !== 0) {
             continue;
           }
+
           state.visited[neighborIndex] = 1;
           state.queue[tail] = neighborIndex;
           tail += 1;
@@ -650,10 +875,6 @@ function filterComponents(mask, width, height, minArea) {
       continue;
     }
 
-    for (let i = 0; i < tail; i += 1) {
-      state.filteredMask[state.queue[i]] = 1;
-    }
-
     components.push({
       area: tail,
       minX,
@@ -662,11 +883,22 @@ function filterComponents(mask, width, height, minArea) {
       maxY,
       centerX: sumX / tail,
       centerY: sumY / tail,
+      pixels: state.queue.slice(0, tail),
     });
   }
 
   components.sort((a, b) => b.area - a.area);
-  return components;
+
+  const selected = components.slice(0, Math.max(1, maxComponents));
+  state.filteredMask.fill(0);
+
+  selected.forEach((component) => {
+    for (let i = 0; i < component.pixels.length; i += 1) {
+      state.filteredMask[component.pixels[i]] = 1;
+    }
+  });
+
+  return selected.map(({ pixels, ...component }) => component);
 }
 
 function buildEdgeMask(mask, width, height, edgeMask) {
@@ -694,7 +926,7 @@ function buildEdgeMask(mask, width, height, edgeMask) {
   }
 }
 
-function paintPreviews(width, height) {
+function paintPreviews() {
   const overlayPixels = state.overlayImageData.data;
   const maskPixels = state.maskImageData.data;
   const edgePixels = state.edgeImageData.data;
@@ -779,7 +1011,7 @@ function paintOutput(analysis, processWidth, processHeight) {
     outputCtx.fill();
 
     outputCtx.fillStyle = "rgba(5, 12, 19, 0.78)";
-    outputCtx.fillRect(x, Math.max(0, y - 28), 110, 24);
+    outputCtx.fillRect(x, Math.max(0, y - 28), 120, 24);
     outputCtx.fillStyle = "#ecf6fb";
     outputCtx.font = "16px 'Avenir Next', 'PingFang SC', sans-serif";
     outputCtx.fillText(`面积 ${component.area}`, x + 8, Math.max(18, y - 10));
@@ -810,30 +1042,128 @@ function handleCanvasSample(event) {
     return;
   }
 
-  const pixelIndex = (y * state.lastProcessWidth + x) * 4;
-  const [h, s, v] = rgbToHsv(
-    state.lastSourcePixels[pixelIndex],
-    state.lastSourcePixels[pixelIndex + 1],
-    state.lastSourcePixels[pixelIndex + 2]
-  );
+  const sample = sampleNeighborhoodHsv(x, y);
+  const sampledMode = inferModeFromSample(sample);
 
-  state.lastSample = { h, s, v };
-  applySampleToConfig(h, s, v);
+  state.currentPresetId = null;
+  state.lastSample = sample;
+  state.config.detectionMode = sampledMode;
+  applySampleToConfig(sample, sampledMode);
   syncControls();
   saveConfigToStorage();
-  updateStatus(`已吸取颜色：H${h} S${s} V${v}`);
+
+  const modeLabel = modeDefinitions.find((mode) => mode.id === sampledMode)?.label ?? "当前";
+  updateStatus(`已区域取样：H${sample.h} S${sample.s} V${sample.v}，自动切到${modeLabel}模式`);
 }
 
-function applySampleToConfig(h, s, v) {
-  const hMargin = 12;
-  const svMargin = 60;
+function sampleNeighborhoodHsv(centerX, centerY) {
+  const radius = state.config.sampleRadius;
+  const sValues = [];
+  const vValues = [];
+  let sumHueX = 0;
+  let sumHueY = 0;
+  let hueCount = 0;
 
-  state.config.lowH = ((h - hMargin) + 180) % 180;
-  state.config.highH = (h + hMargin) % 180;
-  state.config.lowS = clamp(s - svMargin, 0, 255);
-  state.config.highS = clamp(s + svMargin, 0, 255);
-  state.config.lowV = clamp(v - svMargin, 0, 255);
-  state.config.highV = clamp(v + svMargin, 0, 255);
+  for (let dy = -radius; dy <= radius; dy += 1) {
+    for (let dx = -radius; dx <= radius; dx += 1) {
+      const x = clamp(centerX + dx, 0, state.lastProcessWidth - 1);
+      const y = clamp(centerY + dy, 0, state.lastProcessHeight - 1);
+      const pixelIndex = (y * state.lastProcessWidth + x) * 4;
+
+      const [h, s, v] = rgbToHsv(
+        state.lastSourcePixels[pixelIndex],
+        state.lastSourcePixels[pixelIndex + 1],
+        state.lastSourcePixels[pixelIndex + 2]
+      );
+
+      sValues.push(s);
+      vValues.push(v);
+
+      if (s >= 18 && v >= 18) {
+        const angle = (h * 2 * Math.PI) / 180;
+        sumHueX += Math.cos(angle);
+        sumHueY += Math.sin(angle);
+        hueCount += 1;
+      }
+    }
+  }
+
+  const medianS = median(sValues);
+  const medianV = median(vValues);
+
+  let hue = state.config.lowH;
+  if (hueCount > 0) {
+    const angle = Math.atan2(sumHueY, sumHueX);
+    hue = Math.round((((angle * 180) / Math.PI) + 360) % 360 / 2);
+  }
+
+  return {
+    h: hue,
+    s: medianS,
+    v: medianV,
+  };
+}
+
+function inferModeFromSample(sample) {
+  if (sample.s <= 40) {
+    if (sample.v <= 70) {
+      return "black";
+    }
+    if (sample.v >= 200) {
+      return "white";
+    }
+    return "gray";
+  }
+  return "color";
+}
+
+function applySampleToConfig(sample, mode) {
+  const hueMargin = state.config.sampleHueMargin;
+  const satMargin = state.config.sampleSMargin;
+  const valMargin = state.config.sampleVMargin;
+
+  if (mode === "color") {
+    state.config.lowH = wrapHue(sample.h - hueMargin);
+    state.config.highH = wrapHue(sample.h + hueMargin);
+    state.config.lowS = clamp(sample.s - satMargin, 0, 255);
+    state.config.highS = clamp(sample.s + satMargin, 0, 255);
+    state.config.lowV = clamp(sample.v - valMargin, 0, 255);
+    state.config.highV = clamp(sample.v + valMargin, 0, 255);
+    return;
+  }
+
+  state.config.lowH = 0;
+  state.config.highH = 179;
+  state.config.lowS = 0;
+  state.config.highS = clamp(sample.s + satMargin, 0, 255);
+
+  if (mode === "black") {
+    state.config.lowV = 0;
+    state.config.highV = clamp(sample.v + valMargin, 0, 255);
+    return;
+  }
+
+  if (mode === "white") {
+    state.config.lowV = clamp(sample.v - valMargin, 0, 255);
+    state.config.highV = 255;
+    return;
+  }
+
+  state.config.lowV = clamp(sample.v - valMargin, 0, 255);
+  state.config.highV = clamp(sample.v + valMargin, 0, 255);
+}
+
+function median(values) {
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 0) {
+    return Math.round((sorted[middle - 1] + sorted[middle]) / 2);
+  }
+  return sorted[middle];
+}
+
+function wrapHue(value) {
+  return ((Math.round(value) % 180) + 180) % 180;
 }
 
 function clamp(value, min, max) {
